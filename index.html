@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quant System Matrix</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: radial-gradient(circle at 50% 50%, #0d1117 0%, #07090e 100%);
+            color: #f0f6fc;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(48, 54, 65, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .neon-glow {
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+        }
+    </style>
+</head>
+<body class="p-6 min-h-screen">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        <header class="glass-panel p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold tracking-wider text-sky-400 neon-glow">ARIMA ANOMALY ENGINE</h1>
+                <p class="text-sm text-gray-400">Statistical Arbitrage & Market Distortion Tracker</p>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <input type="text" id="tickerInput" value="TSLA" class="bg-gray-900 border border-gray-700 px-4 py-2 rounded-xl text-center font-bold tracking-wide text-sky-300 uppercase focus:outline-none focus:border-sky-500 w-28">
+                <div class="flex items-center gap-2 bg-gray-900 border border-gray-700 px-4 py-1.5 rounded-xl">
+                    <label class="text-xs text-gray-400 uppercase font-semibold">Sigma Threshold:</label>
+                    <input type="number" id="sigmaInput" value="2.5" step="0.1" min="1.0" class="bg-transparent text-emerald-400 font-bold focus:outline-none w-12 text-center">
+                </div>
+                <button onclick="fetchMarketAnalysis()" class="bg-sky-500 hover:bg-sky-600 text-gray-950 font-bold px-5 py-2 rounded-xl transition duration-200 cursor-pointer shadow-lg shadow-sky-500/20">Analyze Matrix</button>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 glass-panel p-6 rounded-2xl flex flex-col justify-between min-h-[400px]">
+                <h2 class="text-lg font-semibold text-gray-300 tracking-wide mb-4">Asset Variance Spectrum</h2>
+                <div class="relative w-full h-full flex items-center justify-center">
+                    <canvas id="marketChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-2xl flex flex-col max-h-[440px]">
+                <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-4">
+                    <h2 class="text-lg font-semibold text-gray-300 tracking-wide">Anomaly Stream</h2>
+                    <span id="anomalyCount" class="bg-rose-500/10 text-rose-400 text-xs px-2.5 py-1 rounded-full font-bold border border-rose-500/20">0 Signals</span>
+                </div>
+                <div id="alertStream" class="space-y-3 overflow-y-auto flex-1 pr-2">
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let systemChart = null;
+
+        async function fetchMarketAnalysis() {
+            // 1. Get the raw value and remove extra spaces
+            const rawTicker = document.getElementById('tickerInput').value.trim();
+            const alertStream = document.getElementById('alertStream');
+            
+            // 2. STRICT CHECK: If it is empty, stop the engine and show an error
+            if (!rawTicker) {
+                alertStream.innerHTML = `<p class="text-sm text-rose-400 font-medium">Input Error: Please enter a valid stock ticker (e.g., AAPL, NVDA).</p>`;
+                
+                // Clear the chart and reset counts to prevent ghost data
+                if (systemChart) systemChart.destroy(); 
+                document.getElementById('anomalyCount').innerText = `0 Signals`;
+                return; // Halt execution
+            }
+
+            // 3. Proceed normally if check passes
+            const ticker = rawTicker;
+            const sigma = document.getElementById('sigmaInput').value || 2.5;
+            const anomalyCount = document.getElementById('anomalyCount');
+            
+            alertStream.innerHTML = '<p class="text-sm text-gray-500 animate-pulse">Running mathematical regressions...</p>';
+
+            try {
+                const response = await fetch(`/api/analyze?ticker=${ticker}&sigma=${sigma}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    alertStream.innerHTML = `<p class="text-sm text-rose-400 font-medium">Execution Error: ${data.error}</p>`;
+                    return;
+                }
+
+                // Process anomaly positions mapping for Chart.js rendering layers
+                const anomalyPoints = Array(data.prices.length).fill(null);
+                data.anomalies.forEach(anomaly => {
+                    const idx = data.dates.indexOf(anomaly.date);
+                    if (idx !== -1) anomalyPoints[idx] = data.prices[idx];
+                });
+
+                // Clear prior instance vectors
+                if (systemChart) systemChart.destroy();
+
+                // Generate high-fidelity canvas visualization framework
+                const ctx = document.getElementById('marketChart').getContext('2d');
+                systemChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.dates,
+                        datasets: [
+                            {
+                                label: 'Closing Base Valuation',
+                                data: data.prices,
+                                borderColor: '#38bdf8',
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Structural Anomaly Point',
+                                data: anomalyPoints,
+                                borderColor: '#f43f5e',
+                                backgroundColor: '#f43f5e',
+                                pointRadius: 5,
+                                pointHoverRadius: 8,
+                                showLine: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { color: 'rgba(48, 54, 65, 0.2)' }, ticks: { color: '#8b949e', maxTicksLimit: 8 } },
+                            y: { grid: { color: 'rgba(48, 54, 65, 0.2)' }, ticks: { color: '#8b949e' } }
+                        }
+                    }
+                });
+
+                // Render real-time alert modules
+                anomalyCount.innerText = `${data.anomalies.length} Signals`;
+                alertStream.innerHTML = '';
+                
+                if (data.anomalies.length === 0) {
+                    alertStream.innerHTML = '<p class="text-sm text-emerald-400 font-medium">✅ Equilibrium maintained. No market distortions detected.</p>';
+                } else {
+                    // Sort descending chronologically
+                    data.anomalies.reverse().forEach(anomaly => {
+                        const card = document.createElement('div');
+                        card.className = 'p-3 rounded-xl bg-rose-950/20 border border-rose-500/20 flex justify-between items-center';
+                        card.innerHTML = `
+                            <div>
+                                <p class="text-sm font-bold text-rose-400">${anomaly.date}</p>
+                                <p class="text-xs text-gray-400">Residual: ${anomaly.deviation > 0 ? '+' : ''}${anomaly.deviation}</p>
+                            </div>
+                            <span class="text-sm font-semibold tracking-tight text-gray-200">$${anomaly.price}</span>
+                        `;
+                        alertStream.appendChild(card);
+                    });
+                }
+
+            } catch (err) {
+                alertStream.innerHTML = `<p class="text-sm text-rose-400 font-medium">Network Fault: ${err.message}</p>`;
+            }
+        }
+
+        // Initialize execution matrix on DOM layout completion
+        window.onload = fetchMarketAnalysis;
+    </script>
+</body>
+</html>
