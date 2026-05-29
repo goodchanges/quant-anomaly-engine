@@ -47,6 +47,10 @@ def analyze_market():
         # Format payloads cleanly for frontend consumption
         anomalies_data = []
         for idx in anomaly_indices:
+            # Warm-up period: Ignore any anomalies mathematically flagged in the first 30 days
+            if int(idx) < 30:
+                continue
+                
             anomalies_data.append({
                 "date": dates[int(idx)],
                 "price": round(prices_list[int(idx)], 2),
